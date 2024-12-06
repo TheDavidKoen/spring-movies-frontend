@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import api from '../../api/axiosConfig';
 import { useParams } from 'react-router-dom';
 import { Container, Row, Col } from 'react-bootstrap';
@@ -9,35 +9,58 @@ const Reviews = ({ getMovieData, movie, reviews, setReviews, isLoggedIn }) => {
   let params = useParams();
   const movieId = params.movieId;
 
+  const [localReviewData, setLocalReviewData] = useState([]);
+
+  // Load reviews from localStorage on initial component render
   useEffect(() => {
-    getMovieData(movieId);
+    const localReviews = JSON.parse(localStorage.getItem(`reviews-${movieId}`)) || [];
+    if (localReviews.length) {
+      setLocalReviewData(localReviews);
+    } else {
+      getMovieData(movieId);
+    }
   }, [movieId]);
+
+  // Persist reviews to localStorage whenever `reviews` are updated
+  useEffect(() => {
+    localStorage.setItem(`reviews-${movieId}`, JSON.stringify(localReviewData));
+  }, [localReviewData, movieId]);
 
   const addReview = async (e) => {
     e.preventDefault();
     const rev = revText.current.value;
     const userAlias = localStorage.getItem('userAlias');
+    const token = localStorage.getItem('token');
 
     if (!rev.trim()) {
-        alert('Review cannot be empty.');
-        return;
+      alert('Review cannot be empty.');
+      return;
     }
 
     try {
-        const response = await api.post('/api/v1/reviews', {
-            reviewBody: rev,
-            imdbId: movieId,
-            alias: userAlias,
-        });
+      const response = await api.post(
+        '/api/v1/reviews',
+        { reviewBody: rev, imdbId: movieId, alias: userAlias },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-        const updatedReviews = [...reviews, response.data];
-        revText.current.value = '';
-        setReviews(updatedReviews);
+      console.log('Server response:', response.data); // Debugging line
+
+      const updatedReviews = [
+        ...localReviewData,
+        {
+          alias: response.data?.alias || userAlias,
+          reviewBody: response.data?.reviewBody || rev,
+        },
+      ];
+
+      setLocalReviewData(updatedReviews);
+      alert('Review submitted successfully!');
     } catch (err) {
-        console.error(err);
-        alert('Failed to submit review.');
+      console.error('Error posting review:', err.response?.data || err.message);
+      alert('Failed to submit review.');
     }
-};
+  };
 
   return (
     <Container>
@@ -63,11 +86,17 @@ const Reviews = ({ getMovieData, movie, reviews, setReviews, isLoggedIn }) => {
               </Row>
             </>
           )}
-          {reviews?.map((r, index) => (
+          {localReviewData?.map((r, index) => (
             <React.Fragment key={index}>
               <Row>
                 <Col>
-                  <strong>{r.alias}</strong>: {r.body} {/* Display the alias */}
+                  {/* Ensure the alias is correctly rendered */}
+                  {r.alias ? (
+                    <strong>{r.alias}</strong>
+                  ) : (
+                    <strong>Anonymous</strong> // Fallback if alias is undefined
+                  )}
+                  : {r.reviewBody}
                 </Col>
               </Row>
               <Row>
