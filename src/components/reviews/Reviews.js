@@ -9,22 +9,20 @@ const Reviews = ({ getMovieData, movie, reviews, setReviews, isLoggedIn }) => {
   let params = useParams();
   const movieId = params.movieId;
 
-  const [localReviewData, setLocalReviewData] = useState([]);
-
-  // Load reviews from localStorage on initial component render
-  useEffect(() => {
-    const localReviews = JSON.parse(localStorage.getItem(`reviews-${movieId}`)) || [];
-    if (localReviews.length) {
-      setLocalReviewData(localReviews);
-    } else {
-      getMovieData(movieId);
+  // Fetch reviews from the backend
+  const getReviews = async (movieId) => {
+    try {
+      const response = await api.get(`/api/v1/reviews/${movieId}`);
+      setReviews(response.data); // Update state with fetched reviews
+    } catch (err) {
+      console.error('Error fetching reviews:', err);
     }
-  }, [movieId]);
+  };
 
-  // Persist reviews to localStorage whenever `reviews` are updated
   useEffect(() => {
-    localStorage.setItem(`reviews-${movieId}`, JSON.stringify(localReviewData));
-  }, [localReviewData, movieId]);
+    getReviews(movieId); // Fetch reviews when the component is mounted
+    getMovieData(movieId); // Fetch movie data (e.g., poster) when the component is mounted
+  }, [movieId]);
 
   const addReview = async (e) => {
     e.preventDefault();
@@ -44,18 +42,18 @@ const Reviews = ({ getMovieData, movie, reviews, setReviews, isLoggedIn }) => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      console.log('Server response:', response.data); // Debugging line
-
+      // Update reviews in the state without reloading
       const updatedReviews = [
-        ...localReviewData,
+        ...reviews,
         {
           alias: response.data?.alias || userAlias,
           reviewBody: response.data?.reviewBody || rev,
         },
       ];
 
-      setLocalReviewData(updatedReviews);
+      setReviews(updatedReviews);
       alert('Review submitted successfully!');
+      revText.current.value = ''; // Clear the review text area
     } catch (err) {
       console.error('Error posting review:', err.response?.data || err.message);
       alert('Failed to submit review.');
@@ -86,17 +84,11 @@ const Reviews = ({ getMovieData, movie, reviews, setReviews, isLoggedIn }) => {
               </Row>
             </>
           )}
-          {localReviewData?.map((r, index) => (
+          {reviews?.map((r, index) => (
             <React.Fragment key={index}>
               <Row>
                 <Col>
-                  {/* Ensure the alias is correctly rendered */}
-                  {r.alias ? (
-                    <strong>{r.alias}</strong>
-                  ) : (
-                    <strong>Anonymous</strong> // Fallback if alias is undefined
-                  )}
-                  : {r.reviewBody}
+                  <strong>{r.alias || "Anonymous"}</strong>: {r.reviewBody}
                 </Col>
               </Row>
               <Row>
