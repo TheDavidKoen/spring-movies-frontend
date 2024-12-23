@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import api from '../../api/axiosConfig';
 import { useParams } from 'react-router-dom';
 import { Container, Row, Col } from 'react-bootstrap';
@@ -13,15 +13,16 @@ const Reviews = ({ getMovieData, movie, reviews, setReviews, isLoggedIn }) => {
   const getReviews = async (movieId) => {
     try {
       const response = await api.get(`/api/v1/reviews/${movieId}`);
-      setReviews(response.data); // Update state with fetched reviews
+      setReviews(response.data); // Ensure the backend response includes 'reviewBody'
     } catch (err) {
       console.error('Error fetching reviews:', err);
     }
   };
 
+  // Fetch movie data and reviews when the component is mounted
   useEffect(() => {
-    getReviews(movieId); // Fetch reviews when the component is mounted
-    getMovieData(movieId); // Fetch movie data (e.g., poster) when the component is mounted
+    getReviews(movieId);
+    getMovieData(movieId);
   }, [movieId]);
 
   const addReview = async (e) => {
@@ -43,15 +44,12 @@ const Reviews = ({ getMovieData, movie, reviews, setReviews, isLoggedIn }) => {
       );
 
       // Update reviews in the state without reloading
-      const updatedReviews = [
-        ...reviews,
-        {
-          alias: response.data?.alias || userAlias,
-          reviewBody: response.data?.reviewBody || rev,
-        },
-      ];
+      const newReview = {
+        alias: response.data?.alias || userAlias,
+        reviewBody: response.data?.reviewBody || rev, // Ensure this field is properly mapped
+      };
 
-      setReviews(updatedReviews);
+      setReviews([...reviews, newReview]);
       alert('Review submitted successfully!');
       revText.current.value = ''; // Clear the review text area
     } catch (err) {
@@ -63,7 +61,9 @@ const Reviews = ({ getMovieData, movie, reviews, setReviews, isLoggedIn }) => {
   return (
     <Container>
       <Row>
-        <Col><h3>Reviews</h3></Col>
+        <Col>
+          <h3>Reviews</h3>
+        </Col>
       </Row>
       <Row className="mt-2">
         <Col>
@@ -88,7 +88,7 @@ const Reviews = ({ getMovieData, movie, reviews, setReviews, isLoggedIn }) => {
             <React.Fragment key={index}>
               <Row>
                 <Col>
-                  <strong>{r.alias || "Anonymous"}</strong>: {r.reviewBody}
+                  <strong>{r.alias || 'Anonymous'}</strong>: {r.reviewBody || 'No review provided'}
                 </Col>
               </Row>
               <Row>
